@@ -157,11 +157,11 @@ export default function Home() {
         }}
       >
         <h2 style={{ fontSize: "0.85rem", fontWeight: 600, marginBottom: "0.5rem" }}>
-          Consumer (process one message)
+          Consumer: process & eval one message
         </h2>
         <p style={{ fontSize: "0.8rem", color: "var(--muted)", marginBottom: "0.75rem" }}>
-          Pull and process one message from the <code>math-eval</code> topic. Vercel Queues delivers
-          messages to consumer groups; this button uses poll mode to process one message and show the result.
+          Pull one message from the <code>math-eval</code> topic and evaluate it. The consumer runs
+          the expression and shows the result below.
         </p>
         <button
           type="button"
@@ -178,7 +178,7 @@ export default function Home() {
             cursor: processOneStatus === "loading" ? "not-allowed" : "pointer",
           }}
         >
-          {processOneStatus === "loading" ? "Processing…" : "Process one message"}
+          {processOneStatus === "loading" ? "Processing…" : "Process & eval one"}
         </button>
         {processOneStatus === "empty" && (
           <p style={{ fontSize: "0.8rem", color: "var(--muted)", marginTop: "0.5rem", marginBottom: 0 }}>
