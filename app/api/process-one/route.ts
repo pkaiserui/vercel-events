@@ -33,17 +33,21 @@ export async function POST() {
       { limit: 1 }
     );
 
-    if (result.ok && processed) {
+    if (result.ok && processed !== null) {
+      const { expression, result: resultValue } = processed;
       return NextResponse.json({
         processed: true,
-        expression: processed.expression,
-        result: processed.result,
+        expression,
+        result: resultValue,
       });
     }
-    if (result.reason === "empty") {
+    if (!result.ok && result.reason === "empty") {
       return NextResponse.json({ processed: false, reason: "empty" });
     }
-    return NextResponse.json({ processed: false, reason: result.reason }, { status: 200 });
+    if (!result.ok) {
+      return NextResponse.json({ processed: false, reason: result.reason }, { status: 200 });
+    }
+    return NextResponse.json({ processed: false }, { status: 200 });
   } catch (error) {
     console.error("[process-one] error:", error);
     return NextResponse.json(
