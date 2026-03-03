@@ -34,7 +34,11 @@ export async function POST() {
     );
 
     if (result.ok && processed) {
-      return NextResponse.json({ processed: true, ...processed });
+      return NextResponse.json({
+        processed: true,
+        expression: processed.expression,
+        result: processed.result,
+      });
     }
     if (result.reason === "empty") {
       return NextResponse.json({ processed: false, reason: "empty" });
