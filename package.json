@@ -11,7 +11,7 @@
   "dependencies": {
     "@vercel/queue": "^0.0.0-alpha.37",
     "expr-eval": "^2.0.2",
-    "next": "15.0.3",
+    "next": "15.0.5",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
