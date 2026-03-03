@@ -1,7 +1,11 @@
-import { send } from "@vercel/queue";
+import { QueueClient } from "@vercel/queue";
 import { NextResponse } from "next/server";
 
 const MATH_TOPIC = "math-eval";
+
+const queue = new QueueClient({
+  region: process.env.QUEUE_REGION ?? process.env.VERCEL_REGION ?? "iad1",
+});
 
 /**
  * Producer: enqueues a math expression. Does not call the consumer.
@@ -20,7 +24,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { messageId } = await send(
+    const { messageId } = await queue.send(
       MATH_TOPIC,
       { expression, createdAt: new Date().toISOString() },
       { retentionSeconds: 86400 }
