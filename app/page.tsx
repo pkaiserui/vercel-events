@@ -1,6 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+
+type ProcessedLog = {
+  expression: string;
+  result: number;
+  userId?: string;
+  submittedAt?: string;
+  processedAt?: string;
+};
+
+const MAX_PROCESSED_LOGS = 50;
 
 export default function Home() {
   const [expression, setExpression] = useState("");
@@ -8,13 +18,12 @@ export default function Home() {
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
   const [processOneStatus, setProcessOneStatus] = useState<"idle" | "loading" | "success" | "empty" | "error">("idle");
-  const [lastProcessed, setLastProcessed] = useState<{
-    expression: string;
-    result: number;
-    userId?: string;
-    submittedAt?: string;
-    processedAt?: string;
-  } | null>(null);
+  const [lastProcessed, setLastProcessed] = useState<ProcessedLog | null>(null);
+  const [processedLogs, setProcessedLogs] = useState<ProcessedLog[]>([]);
+  const [autoProcess, setAutoProcess] = useState(false);
+  const autoProcessRef = useRef<NodeJS.Timeout | null>(null);
+  const [randomPostStatus, setRandomPostStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [randomPostMessage, setRandomPostMessage] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -48,36 +57,90 @@ export default function Home() {
     }
   }
 
+  async function handleCreateRandom() {
+    setRandomPostStatus("loading");
+    setRandomPostMessage(null);
+    try {
+      const res = await fetch("/api/queue/random", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ count: 10 }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setRandomPostStatus("error");
+        setRandomPostMessage(data.error ?? "Failed");
+        return;
+      }
+      setRandomPostStatus("success");
+      setRandomPostMessage(`Queued ${data.queued} random expressions.`);
+    } catch {
+      setRandomPostStatus("error");
+      setRandomPostMessage("Request failed");
+    }
+  }
+
+  function appendProcessedLog(log: ProcessedLog) {
+    setProcessedLogs((prev) => [log, ...prev].slice(0, MAX_PROCESSED_LOGS));
+  }
+
+  async function processOne(): Promise<boolean> {
+    try {
+      const res = await fetch("/api/process-one", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) return false;
+      if (data.reason === "empty") return false;
+      if (data.processed && data.expression != null && data.result != null) {
+        const log: ProcessedLog = {
+          expression: data.expression,
+          result: data.result,
+          userId: data.userId,
+          submittedAt: data.submittedAt,
+          processedAt: data.processedAt,
+        };
+        setLastProcessed(log);
+        appendProcessedLog(log);
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  }
+
   async function handleProcessOne() {
     setProcessOneStatus("loading");
     setLastProcessed(null);
     try {
-      const res = await fetch("/api/process-one", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) {
-        setProcessOneStatus("error");
-        return;
-      }
-      if (data.reason === "empty") {
-        setProcessOneStatus("empty");
-      } else {
-        setProcessOneStatus("success");
-        if (data.processed && data.expression != null && data.result != null) {
-          setLastProcessed({
-            expression: data.expression,
-            result: data.result,
-            userId: data.userId,
-            submittedAt: data.submittedAt,
-            processedAt: data.processedAt,
-          });
-        }
-      }
+      const gotOne = await processOne();
+      setProcessOneStatus(gotOne ? "success" : "empty");
     } catch {
       setProcessOneStatus("error");
     }
   }
 
-return (
+  useEffect(() => {
+    if (!autoProcess) {
+      if (autoProcessRef.current) {
+        clearInterval(autoProcessRef.current);
+        autoProcessRef.current = null;
+      }
+      return;
+    }
+    const run = async () => {
+      await processOne();
+    };
+    run();
+    autoProcessRef.current = setInterval(run, 2000);
+    return () => {
+      if (autoProcessRef.current) {
+        clearInterval(autoProcessRef.current);
+        autoProcessRef.current = null;
+      }
+    };
+  }, [autoProcess]);
+
+  return (
     <main
       style={{
         maxWidth: 560,
@@ -185,6 +248,31 @@ return (
         )}
       </form>
 
+      <div style={{ marginTop: "0.75rem" }}>
+        <button
+          type="button"
+          onClick={handleCreateRandom}
+          disabled={randomPostStatus === "loading"}
+          style={{
+            padding: "0.5rem 1rem",
+            fontSize: "0.9rem",
+            background: randomPostStatus === "loading" ? "var(--muted)" : "transparent",
+            color: "var(--text)",
+            border: "1px solid var(--border)",
+            borderRadius: 6,
+            fontWeight: 600,
+            cursor: randomPostStatus === "loading" ? "not-allowed" : "pointer",
+          }}
+        >
+          {randomPostStatus === "loading" ? "Creating…" : "Create 10 random posts"}
+        </button>
+        {randomPostMessage && (
+          <span style={{ marginLeft: "0.5rem", fontSize: "0.85rem", color: "var(--muted)" }}>
+            {randomPostMessage}
+          </span>
+        )}
+      </div>
+
       <section
         style={{
           marginTop: "2rem",
@@ -237,6 +325,14 @@ return (
             Consumer: process log
           </button>
         </div>
+        <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.75rem", fontSize: "0.9rem", cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={autoProcess}
+            onChange={(e) => setAutoProcess(e.target.checked)}
+          />
+          Auto-process (poll every 2s when queue has messages)
+        </label>
         {processOneStatus === "empty" && (
           <p style={{ fontSize: "0.8rem", color: "var(--muted)", marginTop: "0.5rem", marginBottom: 0 }}>
             No message in the queue. Queue an expression above first.
@@ -255,6 +351,43 @@ return (
               {lastProcessed.processedAt && <>Processed: {lastProcessed.processedAt}</>}
             </p>
           </div>
+        )}
+      </section>
+
+      <section
+        style={{
+          marginTop: "1.5rem",
+          padding: "1.25rem",
+          background: "var(--surface)",
+          border: "1px solid var(--border)",
+          borderRadius: 8,
+        }}
+      >
+        <h2 style={{ fontSize: "0.85rem", fontWeight: 600, marginBottom: "0.5rem" }}>
+          Processed logs
+        </h2>
+        <p style={{ fontSize: "0.8rem", color: "var(--muted)", marginBottom: "0.75rem" }}>
+          Logs from processing in this session (manual or auto). Newest first. Max {MAX_PROCESSED_LOGS} entries.
+        </p>
+        {processedLogs.length === 0 ? (
+          <p style={{ fontSize: "0.85rem", color: "var(--muted)", margin: 0 }}>
+            No processed logs yet. Process messages with the buttons above or turn on Auto-process.
+          </p>
+        ) : (
+          <ul style={{ margin: 0, paddingLeft: "1.25rem", fontSize: "0.85rem", lineHeight: 1.9 }}>
+            {processedLogs.map((log, i) => (
+              <li key={i} style={{ color: "var(--muted)", marginBottom: "0.25rem" }}>
+                <code>{log.expression}</code> → <strong>{log.result}</strong>
+                {(log.userId || log.submittedAt || log.processedAt) && (
+                  <span style={{ fontSize: "0.8rem", marginLeft: "0.35rem" }}>
+                    {log.userId && <> · {log.userId}</>}
+                    {log.submittedAt && <> · submitted {log.submittedAt}</>}
+                    {log.processedAt && <> · processed {log.processedAt}</>}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
         )}
       </section>
 
