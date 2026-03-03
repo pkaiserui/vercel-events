@@ -4,10 +4,17 @@ import { useState } from "react";
 
 export default function Home() {
   const [expression, setExpression] = useState("");
+  const [userId, setUserId] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
   const [processOneStatus, setProcessOneStatus] = useState<"idle" | "loading" | "success" | "empty" | "error">("idle");
-  const [lastProcessed, setLastProcessed] = useState<{ expression: string; result: number } | null>(null);
+  const [lastProcessed, setLastProcessed] = useState<{
+    expression: string;
+    result: number;
+    userId?: string;
+    submittedAt?: string;
+    processedAt?: string;
+  } | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -18,7 +25,10 @@ export default function Home() {
       const res = await fetch("/api/queue/math", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ expression: expression.trim() }),
+        body: JSON.stringify({
+          expression: expression.trim(),
+          userId: userId.trim() || undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -27,7 +37,10 @@ export default function Home() {
         return;
       }
       setStatus("success");
-      setMessage(`Queued: "${data.expression}" (messageId: ${data.messageId})`);
+      const parts = [`Queued: "${data.expression}" (messageId: ${data.messageId})`];
+      if (data.userId) parts.push(`user: ${data.userId}`);
+      if (data.submittedAt) parts.push(`submitted: ${data.submittedAt}`);
+      setMessage(parts.join(" · "));
       setExpression("");
     } catch (err) {
       setStatus("error");
@@ -50,7 +63,13 @@ export default function Home() {
       } else {
         setProcessOneStatus("success");
         if (data.processed && data.expression != null && data.result != null) {
-          setLastProcessed({ expression: data.expression, result: data.result });
+          setLastProcessed({
+            expression: data.expression,
+            result: data.result,
+            userId: data.userId,
+            submittedAt: data.submittedAt,
+            processedAt: data.processedAt,
+          });
         }
       }
     } catch {
@@ -58,7 +77,7 @@ export default function Home() {
     }
   }
 
-  return (
+return (
     <main
       style={{
         maxWidth: 560,
@@ -92,32 +111,50 @@ export default function Home() {
       </p>
 
       <form onSubmit={handleSubmit}>
-        <div
-          style={{
-            display: "flex",
-            gap: "0.75rem",
-            marginBottom: "1rem",
-          }}
-        >
+        <div style={{ marginBottom: "1rem" }}>
           <input
             type="text"
-            value={expression}
-            onChange={(e) => setExpression(e.target.value)}
-            placeholder="e.g. 2 + 3 * 4"
+            value={userId}
+            onChange={(e) => setUserId(e.target.value)}
+            placeholder="Username (optional, default: anonymous)"
             disabled={status === "loading"}
             style={{
-              flex: 1,
-              padding: "0.75rem 1rem",
+              width: "100%",
+              marginBottom: "0.5rem",
+              padding: "0.5rem 0.75rem",
               background: "var(--surface)",
               border: "1px solid var(--border)",
               borderRadius: 6,
               color: "var(--text)",
               fontFamily: "inherit",
-              fontSize: "1rem",
+              fontSize: "0.9rem",
             }}
-            autoFocus
           />
-          <button
+          <div
+            style={{
+              display: "flex",
+              gap: "0.75rem",
+            }}
+          >
+            <input
+              type="text"
+              value={expression}
+              onChange={(e) => setExpression(e.target.value)}
+              placeholder="e.g. 2 + 3 * 4"
+              disabled={status === "loading"}
+              style={{
+                flex: 1,
+                padding: "0.75rem 1rem",
+                background: "var(--surface)",
+                border: "1px solid var(--border)",
+                borderRadius: 6,
+                color: "var(--text)",
+                fontFamily: "inherit",
+                fontSize: "1rem",
+              }}
+              autoFocus
+            />
+            <button
             type="submit"
             disabled={status === "loading" || !expression.trim()}
             style={{
@@ -133,6 +170,7 @@ export default function Home() {
           >
             {status === "loading" ? "Sending…" : "Queue"}
           </button>
+          </div>
         </div>
         {message && (
           <p
@@ -205,9 +243,18 @@ export default function Home() {
           </p>
         )}
         {lastProcessed && (
-          <p style={{ fontSize: "0.9rem", marginTop: "0.75rem", marginBottom: 0 }}>
-            Last processed: <code>{lastProcessed.expression}</code> → <strong>{lastProcessed.result}</strong>
-          </p>
+          <div style={{ fontSize: "0.9rem", marginTop: "0.75rem" }}>
+            <p style={{ margin: 0 }}>
+              Last processed: <code>{lastProcessed.expression}</code> → <strong>{lastProcessed.result}</strong>
+            </p>
+            <p style={{ margin: "0.35rem 0 0", fontSize: "0.8rem", color: "var(--muted)" }}>
+              {lastProcessed.userId && <>Username: {lastProcessed.userId}</>}
+              {lastProcessed.userId && (lastProcessed.submittedAt || lastProcessed.processedAt) && " · "}
+              {lastProcessed.submittedAt && <>Submitted: {lastProcessed.submittedAt}</>}
+              {lastProcessed.submittedAt && lastProcessed.processedAt && " · "}
+              {lastProcessed.processedAt && <>Processed: {lastProcessed.processedAt}</>}
+            </p>
+          </div>
         )}
       </section>
 

@@ -16,6 +16,9 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const expression = typeof body?.expression === "string" ? body.expression.trim() : null;
+    const rawUserId = typeof body?.userId === "string" ? body.userId.trim() : "";
+    const userId = rawUserId || "anonymous";
+    const submittedAt = new Date().toISOString();
 
     if (!expression) {
       return NextResponse.json(
@@ -24,15 +27,19 @@ export async function POST(request: Request) {
       );
     }
 
+    const payload = { expression, userId, submittedAt };
+
     const { messageId } = await queue.send(
       MATH_TOPIC,
-      { expression, createdAt: new Date().toISOString() },
+      payload,
       { retentionSeconds: 86400 }
     );
 
     return NextResponse.json({
       messageId,
       expression,
+      userId,
+      submittedAt,
       status: "queued",
       note: "Expression will be evaluated by the consumer when it runs (even if the service was down).",
     });

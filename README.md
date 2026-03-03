@@ -54,7 +54,7 @@ Messages are stored durably in the queue. If the consumer is unavailable (e.g. d
 **Queue a math expression**
 
 ```bash
-curl -X POST https://your-project.vercel.app/api/queue/math \
+curl -X POST https://vercel-events-nine.vercel.app/api/queue/math \
   -H "Content-Type: application/json" \
   -d '{"expression": "2 + 3 * 4"}'
 ```

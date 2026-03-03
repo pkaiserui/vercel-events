@@ -9,7 +9,12 @@ const queue = new QueueClient({
   region: process.env.QUEUE_REGION ?? process.env.VERCEL_REGION ?? "iad1",
 });
 
-type MathMessage = { expression: string; createdAt?: string };
+type MathMessage = {
+  expression: string;
+  userId?: string | null;
+  submittedAt?: string;
+  createdAt?: string;
+};
 
 /**
  * Process one message from the topic (poll mode). Returns the evaluated result
@@ -17,28 +22,43 @@ type MathMessage = { expression: string; createdAt?: string };
  */
 export async function POST() {
   try {
-    let processed: { expression: string; result: number } | null = null;
+    let processed: {
+      expression: string;
+      result: number;
+      userId?: string | null;
+      submittedAt?: string;
+      processedAt: string;
+    } | null = null;
 
     const result = await queue.receive<MathMessage>(
       MATH_TOPIC,
       CONSUMER_GROUP,
       async (message) => {
-        const { expression } = message;
+        const { expression, userId, submittedAt } = message;
         if (!expression || typeof expression !== "string") {
           throw new Error("Invalid message: missing or invalid expression");
         }
         const value = safeEvaluate(expression);
-        processed = { expression, result: value };
+        processed = {
+          expression,
+          result: value,
+          userId,
+          submittedAt,
+          processedAt: new Date().toISOString(),
+        };
       },
       { limit: 1 }
     );
 
     if (result.ok && processed !== null) {
-      const { expression, result: resultValue } = processed;
+      const { expression, result: resultValue, userId, submittedAt, processedAt } = processed;
       return NextResponse.json({
         processed: true,
         expression,
         result: resultValue,
+        userId: userId ?? undefined,
+        submittedAt: submittedAt ?? undefined,
+        processedAt,
       });
     }
     if (!result.ok && result.reason === "empty") {
