@@ -163,23 +163,42 @@ export default function Home() {
           Pull one message from the <code>math-eval</code> topic and evaluate it. The consumer runs
           the expression and shows the result below.
         </p>
-        <button
-          type="button"
-          onClick={handleProcessOne}
-          disabled={processOneStatus === "loading"}
-          style={{
-            padding: "0.5rem 1rem",
-            fontSize: "0.9rem",
-            background: processOneStatus === "loading" ? "var(--muted)" : "var(--accent)",
-            color: "var(--bg)",
-            border: "none",
-            borderRadius: 6,
-            fontWeight: 600,
-            cursor: processOneStatus === "loading" ? "not-allowed" : "pointer",
-          }}
-        >
-          {processOneStatus === "loading" ? "Processing…" : "Process & eval one"}
-        </button>
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+          <button
+            type="button"
+            onClick={handleProcessOne}
+            disabled={processOneStatus === "loading"}
+            style={{
+              padding: "0.5rem 1rem",
+              fontSize: "0.9rem",
+              background: processOneStatus === "loading" ? "var(--muted)" : "var(--accent)",
+              color: "var(--bg)",
+              border: "none",
+              borderRadius: 6,
+              fontWeight: 600,
+              cursor: processOneStatus === "loading" ? "not-allowed" : "pointer",
+            }}
+          >
+            {processOneStatus === "loading" ? "Processing…" : "Process & eval one"}
+          </button>
+          <button
+            type="button"
+            onClick={handleProcessOne}
+            disabled={processOneStatus === "loading"}
+            style={{
+              padding: "0.5rem 1rem",
+              fontSize: "0.9rem",
+              background: processOneStatus === "loading" ? "var(--muted)" : "transparent",
+              color: "var(--text)",
+              border: "1px solid var(--border)",
+              borderRadius: 6,
+              fontWeight: 600,
+              cursor: processOneStatus === "loading" ? "not-allowed" : "pointer",
+            }}
+          >
+            Consumer: process log
+          </button>
+        </div>
         {processOneStatus === "empty" && (
           <p style={{ fontSize: "0.8rem", color: "var(--muted)", marginTop: "0.5rem", marginBottom: 0 }}>
             No message in the queue. Queue an expression above first.
