@@ -1,0 +1,9 @@
+{
+  "functions": {
+    "app/api/queues/evaluate-math/route.ts": {
+      "experimentalTriggers": [
+        { "type": "queue/v2beta", "topic": "math-eval" }
+      ]
+    }
+  }
+}
